@@ -3,33 +3,12 @@
 #include <string.h>
 
 #include <sys/sysinfo.h>
+#include <wordexp.h>
 
 #include "texture.h"
-#include "ds.h"
+#include "sti/sti.h"
 
 
-
-static char* strappend(char* a, const char* const b);
-static char* strappendf(char* a, const char* const b);
-
-static char* strappendf(char* a, const char* const b) {
-	char* o = strappend(a, b);
-	free(a);
-	return o;
-}
-
-static char* strappend(char* a, const char* const b) {
-	if(a == NULL) return strdup(b);
-	if(b == NULL) return a;
-	
-	size_t la = strlen(a);
-	size_t lb = strlen(b);
-	char* o = malloc(la + lb + 1);
-	strcpy(o, a);
-	strcpy(o + la, b);
-	o[la + lb] = '\0';
-	return o;
-}
 
 
 
@@ -74,6 +53,9 @@ char* helpText = "" \
 
 
 
+int verbose = 0;
+
+
 
 
 int main(int argc, char* argv[]) {
@@ -87,7 +69,6 @@ int main(int argc, char* argv[]) {
 	char* png_outfile = NULL;
 	
 	int maxCores = get_nprocs();
-	int verbose = 0;
 	char pretend = 0;
 	int texSize = 0;
 	
@@ -98,7 +79,18 @@ int main(int argc, char* argv[]) {
 		char* arg = argv[an];
 		
 		if(arg[0] != '-') {
-			VEC_PUSH(&imagePaths, arg);
+			wordexp_t p;
+			char** w;
+			
+			wordexp(arg, &p, 0);
+			w = p.we_wordv;
+			
+			for(int i = 0; i < p.we_wordc; i++) {
+				printf("Expanding to %s\n", w[i]);
+				VEC_PUSH(&imagePaths, strdup(w[i]));
+			}
+			wordfree(&p);
+//			VEC_PUSH(&imagePaths, arg);
 		}
 		
 		
@@ -201,8 +193,10 @@ int main(int argc, char* argv[]) {
 	// TODO: check for and append %d if needed
 	
 	// TODO: check for and append .png and .json 
-	json_outfile = strappend(json_outfile, ".json");
-	png_outfile = strappend(png_outfile, ".png");
+	json_outfile = strcatdup(json_outfile, ".json");
+	png_outfile = strcatdup(png_outfile, ".png");
+	
+	
 	
 	
 	
@@ -258,12 +252,15 @@ int main(int argc, char* argv[]) {
 		tm->maxAtlasSize = texSize;
 		
 		VEC_EACH(&imagePaths, ii, ip) {
+			if(verbose > 0) printf("path: %s\n", ip);
 			TextureAtlas_addPNG(tm, ip);
 		}
 		
 		TextureAtlas_finalize(tm);
 		
-
+		FILE* jf = fopen(json_outfile, "wb");
+		TextureAtlas_PrintMetadata(tm, jf);
+		fclose(jf);
 // 		FontManager_createAtlas(fm);
 		
 // 		FontManager_saveJSON(fm, json_outfile);
@@ -280,54 +277,3 @@ int main(int argc, char* argv[]) {
 
 
 
-char* pathJoin(const char* a, const char* b) {
-	int alen, blen;
-	char* o;
-	
-	
-	alen = a ? strlen(a) : 0;
-	blen = b ? strlen(b) : 0;
-	
-	o = malloc(alen + blen + 2);
-	
-	strcpy(o, a ? a : "");
-	o[alen] = '/'; // TODO: fix the concat here
-	strcpy(o + alen + 1, b ? b : "");
-	o[alen + blen + 1] = 0; 
-	
-	return o;
-}
-
-
-// gets a pointer to the first character of the file extension, or to the null terminator if none
-const char* pathExt(const char* path) {
-	int i;
-	int len = strlen(path);
-	
-	for(i = len - 1; i >= 0; i--) {
-		char c = path[i];
-		if(c == '.') return path + i;
-		else if(c == '/') break;
-	} 
-	
-	return path + len;
-}
-
-// gets a pointer to the first character of the file extension, or to the null terminator if none
-// also provides the length of the path without the period and extension
-const char* pathExt2(const char* path, int* end) {
-	int i;
-	int len = strlen(path);
-	
-	for(i = len - 1; i >= 0; i--) {
-		char c = path[i];
-		if(c == '.') {
-			if(end) *end = i > 0 ? i : 0; 
-			return path + i + 1;
-		}
-		else if(c == '/') break;
-	} 
-	
-	if(end) *end = len;
-	return path + len;
-}

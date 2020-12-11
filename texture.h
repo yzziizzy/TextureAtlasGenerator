@@ -3,14 +3,12 @@
 
 
 #include "c3dlas.h"
-#include "hash.h"
-#include "ds.h"
+#include "sti/sti.h"
 
+
+extern int verbose;
 
 // defined in main.c. dropped in here for visibility. was originally in a utilities file.
-char* pathJoin(const char* a, const char* b);
-const char* pathExt(const char* path);
-const char* pathExt2(const char* path, int* end);
 #define streq(a, b) (0 == strcmp(a, b))
 #define strcaseeq(a, b) (0 == strcasecmp(a, b))
 
@@ -132,11 +130,17 @@ typedef struct TextureAtlasSource {
 	float aspectRatio;
 	Vector2 size;
 	uint8_t* data;
+	
 } TextureAtlasSource;
 
 
+typedef struct TextureAtlasDest {
+	char* filename;
+} TextureAtlasDest;
+
+
 typedef struct TextureAtlas {
-	HashTable(TextureAtlasItem*) items;
+	HT(TextureAtlasItem*) items;
 	
 	int width;
 	VEC(uint32_t*) atlas;
@@ -144,6 +148,8 @@ typedef struct TextureAtlas {
 	char* pngFileFormat;
 	
 	VEC(TextureAtlasSource*) sources;
+	
+	VEC(TextureAtlasDest*) dests;
 	
 	int maxAtlasSize;
 	int verbose;
@@ -157,5 +163,9 @@ void TextureAtlas_init(TextureAtlas* ta);
 void TextureAtlas_addPNG(TextureAtlas* ta, char* path);
 void TextureAtlas_addFolder(TextureAtlas* ta, char* prefix, char* dirPath, int recursive);
 void TextureAtlas_finalize(TextureAtlas* ta);
+
+
+void TextureAtlas_PrintMetadata(TextureAtlas* ta, FILE* f);
+
 
 #endif // __EACSMB_texture_h__

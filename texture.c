@@ -6,7 +6,6 @@
 
 #include <unistd.h>
 
-#include "hash.h"
 #include "texture.h"
 
 #include <png.h>
